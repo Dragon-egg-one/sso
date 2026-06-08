@@ -5,4 +5,4 @@ compatibility_date = "2026-06-08"
 [[d1_databases]]
 binding = "DB"
 database_name = "openai_oidc_sso"
-database_id = "replace-with-your-d1-database-id"
+database_id = "783da430-30be-48f7-bec9-8a77f7559675"
