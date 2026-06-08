@@ -1,0 +1,8 @@
+name = "openai-oidc-sso"
+main = "src/index.js"
+compatibility_date = "2026-06-08"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "openai_oidc_sso"
+database_id = "replace-with-your-d1-database-id"
