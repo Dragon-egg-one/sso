@@ -10,15 +10,43 @@ describe("邀請碼登入規則", () => {
     await store.createInviteCode({ code: "JOIN-100", maxUses: 100 });
     const service = new InviteService(store);
 
-    const result = await service.loginWithInvite({
-      email: "Alice@Example.com",
+    const result = await service.registerWithInvite({
+      account: "Alice",
       displayName: "Alice",
       inviteCode: "JOIN-100"
     });
 
-    assert.equal(result.email, "alice@example.com");
+    assert.equal(result.email, "alice@itc.989567.xyz");
     assert.equal(result.created, true);
     assert.equal((await store.getInviteCode("JOIN-100")).usedCount, 1);
+  });
+
+  it("註冊時會移除固定信箱尾綴", async () => {
+    const store = new MemoryStore();
+    await store.createInviteCode({ code: "JOIN-100", maxUses: 100 });
+    const service = new InviteService(store);
+
+    const result = await service.registerWithInvite({
+      account: "Neko@itc.989567.xyz",
+      inviteCode: "JOIN-100"
+    });
+
+    assert.equal(result.email, "neko@itc.989567.xyz");
+  });
+
+  it("註冊時會拒絕其他信箱域名", async () => {
+    const store = new MemoryStore();
+    await store.createInviteCode({ code: "JOIN-100", maxUses: 100 });
+    const service = new InviteService(store);
+
+    await assert.rejects(
+      () =>
+        service.registerWithInvite({
+          account: "neko@example.com",
+          inviteCode: "JOIN-100"
+        }),
+      /只能使用 @itc\.989567\.xyz 帳號/
+    );
   });
 
   it("新使用者不需要填名字並會分配固定顯示名稱", async () => {
@@ -26,8 +54,8 @@ describe("邀請碼登入規則", () => {
     await store.createInviteCode({ code: "JOIN-100", maxUses: 100 });
     const service = new InviteService(store);
 
-    const result = await service.loginWithInvite({
-      email: "name-free@example.com",
+    const result = await service.registerWithInvite({
+      account: "name-free",
       inviteCode: "JOIN-100"
     });
 
@@ -39,38 +67,49 @@ describe("邀請碼登入規則", () => {
     await store.createInviteCode({ code: "FULL", maxUses: 1 });
     const service = new InviteService(store);
 
-    await service.loginWithInvite({
-      email: "first@example.com",
+    await service.registerWithInvite({
+      account: "first",
       inviteCode: "FULL"
     });
 
     await assert.rejects(
       () =>
-        service.loginWithInvite({
-          email: "second@example.com",
+        service.registerWithInvite({
+          account: "second",
           inviteCode: "FULL"
         }),
       /邀請碼使用次數已達上限/
     );
   });
 
-  it("既有使用者登入不需要消耗新的邀請碼次數", async () => {
+  it("既有使用者登入只需要帳號且不消耗邀請碼次數", async () => {
     const store = new MemoryStore();
     await store.createInviteCode({ code: "ONCE", maxUses: 1 });
     const service = new InviteService(store);
 
-    await service.loginWithInvite({
-      email: "member@example.com",
+    await service.registerWithInvite({
+      account: "member",
       inviteCode: "ONCE"
     });
 
-    const result = await service.loginWithInvite({
-      email: "MEMBER@example.com",
-      inviteCode: "wrong-code"
+    const result = await service.login({
+      account: "MEMBER@itc.989567.xyz"
     });
 
-    assert.equal(result.email, "member@example.com");
+    assert.equal(result.email, "member@itc.989567.xyz");
     assert.equal(result.created, false);
     assert.equal((await store.getInviteCode("ONCE")).usedCount, 1);
+  });
+
+  it("未註冊帳號登入時會要求先註冊", async () => {
+    const service = new InviteService(new MemoryStore());
+
+    await assert.rejects(
+      () =>
+        service.login({
+          account: "new-user"
+        }),
+      /帳號不存在，請先註冊/
+    );
   });
 });

@@ -104,7 +104,7 @@ describe("OIDC 服務", () => {
     await store.createInviteCode({ code: "JOIN", maxUses: 100 });
     const inviteService = new InviteService(store);
     const user = await inviteService.loginWithInvite({
-      email: "user@example.com",
+      email: "user@itc.989567.xyz",
       inviteCode: "JOIN"
     });
 
@@ -128,7 +128,7 @@ describe("OIDC 服務", () => {
     const claims = await verifyJwt(token.id_token, JSON.parse(config.privateJwk));
     assert.equal(claims.iss, "https://sso.example.com");
     assert.equal(claims.aud, "openai-client");
-    assert.equal(claims.email, "user@example.com");
+    assert.equal(claims.email, "user@itc.989567.xyz");
     assert.equal(claims.given_name, "Neko");
     assert.equal(claims.family_name, "Maau");
     assert.equal(claims.nonce, "nonce-1");
@@ -149,7 +149,7 @@ describe("OIDC 服務", () => {
     const { store, service } = createService();
     await store.createInviteCode({ code: "JOIN", maxUses: 100 });
     const user = await new InviteService(store).loginWithInvite({
-      email: "user@example.com",
+      email: "user@itc.989567.xyz",
       inviteCode: "JOIN"
     });
     const authCode = await service.createAuthorizationCode({

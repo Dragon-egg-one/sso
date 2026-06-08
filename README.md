@@ -1,13 +1,13 @@
 # Cloudflare Workers OpenAI OIDC SSO
 
-這是一個部署於 Cloudflare Workers 的 Custom OIDC SSO Provider，用於對接 OpenAI SSO。使用者登入時輸入電子郵件與邀請碼；邀請碼預設最多建立 100 個新帳號。已建立帳號之後仍可登入，不會再消耗邀請碼。
+這是一個部署於 Cloudflare Workers 的 Custom OIDC SSO Provider，用於對接 OpenAI SSO。使用者登入時只輸入帳號；註冊新帳號時需要輸入邀請碼。系統會把帳號固定轉成 `@itc.989567.xyz` 信箱，邀請碼預設最多建立 100 個新帳號。已建立帳號之後仍可登入，不會再消耗邀請碼。
 
 ## 功能
 
 - OIDC discovery：`/.well-known/openid-configuration`
 - JWKS：`/jwks.json`
 - 授權端點：`/authorize`
-- 登入端點：`/login`
+- 登入與註冊端點：`/login`
 - Token 端點：`/token`
 - UserInfo 端點：`/userinfo`
 - 邀請碼管理：`/admin/invite-codes`
@@ -58,6 +58,15 @@ pnpm wrangler secret put ADMIN_TOKEN
 - `TOKEN_TTL_SECONDS`
 
 `ADMIN_TOKEN` 只在需要使用 `/admin/invite-codes` API 時才需要設定，建議作為 Workers secret 保存。若不設定，仍可直接在 D1 Console 用 SQL 建立邀請碼。
+
+## 登入與註冊
+
+登入頁分成兩個流程：
+
+- 登入：輸入帳號即可，例如 `neko`。系統會使用 `neko@itc.989567.xyz` 登入。
+- 註冊：輸入帳號與邀請碼。註冊成功後會直接完成 OIDC 登入。
+
+若使用者輸入完整信箱 `neko@itc.989567.xyz`，系統會自動視為帳號 `neko`。其他信箱域名會被拒絕。
 
 ## 建立邀請碼
 

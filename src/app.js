@@ -53,6 +53,7 @@ function handleAuthorize(url, oidcService) {
 
 async function handleLogin(request, inviteService, oidcService) {
   const form = await request.formData();
+  const mode = String(form.get("mode") ?? "login");
   const authRequest = {
     clientId: String(form.get("client_id") ?? ""),
     redirectUri: String(form.get("redirect_uri") ?? ""),
@@ -71,10 +72,14 @@ async function handleLogin(request, inviteService, oidcService) {
     })
   );
 
-  const user = await inviteService.loginWithInvite({
-    email: String(form.get("email") ?? ""),
-    inviteCode: String(form.get("invite_code") ?? "")
-  });
+  const account = String(form.get("account") ?? "");
+  const user =
+    mode === "register"
+      ? await inviteService.registerWithInvite({
+          account,
+          inviteCode: String(form.get("invite_code") ?? "")
+        })
+      : await inviteService.login({ account });
   const code = await oidcService.createAuthorizationCode({
     user,
     clientId: authRequest.clientId,
@@ -207,30 +212,48 @@ function renderLoginPage(request) {
   <style>
     :root { color-scheme: light; font-family: Arial, "Noto Sans TC", sans-serif; }
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f7f7f5; color: #1f2328; }
-    main { width: min(420px, calc(100vw - 32px)); background: #fff; border: 1px solid #d9d9d6; border-radius: 8px; padding: 28px; box-shadow: 0 18px 45px rgb(0 0 0 / 8%); }
+    main { width: min(520px, calc(100vw - 32px)); background: #fff; border: 1px solid #d9d9d6; border-radius: 8px; padding: 28px; box-shadow: 0 18px 45px rgb(0 0 0 / 8%); }
     h1 { margin: 0 0 20px; font-size: 24px; line-height: 1.25; }
+    h2 { margin: 0 0 12px; font-size: 18px; line-height: 1.3; }
     label { display: grid; gap: 8px; margin: 14px 0; font-size: 14px; font-weight: 600; }
     input { box-sizing: border-box; width: 100%; border: 1px solid #c8c8c4; border-radius: 6px; padding: 11px 12px; font-size: 16px; }
     button { width: 100%; border: 0; border-radius: 6px; padding: 12px 14px; margin-top: 12px; background: #111; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
     p { margin: 0 0 16px; color: #5b5f66; line-height: 1.6; }
+    section { border-top: 1px solid #e5e5e2; padding-top: 20px; margin-top: 20px; }
+    .suffix { color: #5b5f66; font-weight: 500; }
   </style>
 </head>
 <body>
   <main>
     <h1>OpenAI SSO 登入</h1>
-    <p>請輸入電子郵件。新帳號需要有效邀請碼；已建立帳號可直接登入。</p>
+    <p>已註冊帳號可直接登入。新帳號需要邀請碼。</p>
     <form method="post" action="/login">
+      <input type="hidden" name="mode" value="login">
       ${Object.entries(hiddenFields)
         .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
         .join("")}
-      <label>電子郵件
-        <input name="email" type="email" autocomplete="email" required>
+      <h2>登入</h2>
+      <label>帳號 <span class="suffix">@itc.989567.xyz</span>
+        <input name="account" autocomplete="username" required>
       </label>
+      <button type="submit">登入</button>
+    </form>
+    <section>
+      <form method="post" action="/login">
+        <input type="hidden" name="mode" value="register">
+        ${Object.entries(hiddenFields)
+          .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
+          .join("")}
+        <h2>註冊</h2>
+        <label>帳號 <span class="suffix">@itc.989567.xyz</span>
+          <input name="account" autocomplete="username" required>
+        </label>
       <label>邀請碼
         <input name="invite_code" autocomplete="one-time-code">
       </label>
-      <button type="submit">繼續</button>
-    </form>
+        <button type="submit">註冊並登入</button>
+      </form>
+    </section>
   </main>
 </body>
 </html>`;

@@ -49,14 +49,16 @@ describe("Worker HTTP 端點", () => {
     const html = await response.text();
     assert.equal(response.status, 200);
     assert.match(html, /OpenAI SSO 登入/);
+    assert.match(html, /註冊/);
     assert.match(html, /邀請碼/);
   });
 
-  it("/login 成功後會導回 redirect_uri 並帶上授權碼", async () => {
+  it("/login 註冊成功後會導回 redirect_uri 並帶上授權碼", async () => {
     const { store, app } = createTestApp();
     await store.createInviteCode({ code: "JOIN", maxUses: 100 });
     const body = new URLSearchParams({
-      email: "user@example.com",
+      mode: "register",
+      account: "user",
       invite_code: "JOIN",
       client_id: "openai-client",
       redirect_uri: "https://auth.openai.com/oidc/callback",
@@ -79,6 +81,62 @@ describe("Worker HTTP 端點", () => {
     assert.ok(location.searchParams.get("code"));
   });
 
+  it("/login 既有帳號登入不需要邀請碼", async () => {
+    const { store, app } = createTestApp();
+    await store.createInviteCode({ code: "JOIN", maxUses: 1 });
+    await store.createUserWithInvite({
+      email: "member@itc.989567.xyz",
+      displayName: "Neko Maau",
+      inviteCode: "JOIN"
+    });
+    const body = new URLSearchParams({
+      mode: "login",
+      account: "member@itc.989567.xyz",
+      client_id: "openai-client",
+      redirect_uri: "https://auth.openai.com/oidc/callback",
+      scope: "openid email"
+    });
+
+    const response = await app.fetch(
+      new Request("https://sso.example.com/login", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body
+      })
+    );
+
+    assert.equal(response.status, 302);
+    assert.ok(new URL(response.headers.get("location")).searchParams.get("code"));
+    assert.equal((await store.getInviteCode("JOIN")).usedCount, 1);
+  });
+
+  it("/login 登入未註冊帳號會顯示錯誤", async () => {
+    const { app } = createTestApp();
+    const body = new URLSearchParams({
+      mode: "login",
+      account: "unknown",
+      client_id: "openai-client",
+      redirect_uri: "https://auth.openai.com/oidc/callback",
+      scope: "openid email"
+    });
+    const originalConsoleError = console.error;
+    console.error = () => {};
+
+    const response = await app.fetch(
+      new Request("https://sso.example.com/login", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body
+      })
+    ).finally(() => {
+      console.error = originalConsoleError;
+    });
+    const html = await response.text();
+
+    assert.equal(response.status, 400);
+    assert.match(html, /帳號不存在，請先註冊/);
+  });
+
   it("/login 遇到非標準錯誤時仍會回傳登入失敗頁", async () => {
     const { app } = createTestApp();
     app.fetch = createApp({
@@ -97,7 +155,8 @@ describe("Worker HTTP 端點", () => {
       })
     }).fetch;
     const body = new URLSearchParams({
-      email: "user@example.com",
+      mode: "register",
+      account: "user",
       invite_code: "JOIN",
       client_id: "openai-client",
       redirect_uri: "https://auth.openai.com/oidc/callback",
@@ -140,7 +199,8 @@ describe("Worker HTTP 端點", () => {
     const { store, app } = createTestApp();
     await store.createInviteCode({ code: "JOIN", maxUses: 100 });
     const loginBody = new URLSearchParams({
-      email: "user@example.com",
+      mode: "register",
+      account: "user",
       invite_code: "JOIN",
       client_id: "openai-client",
       redirect_uri: "https://auth.openai.com/oidc/callback",
