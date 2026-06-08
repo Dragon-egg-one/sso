@@ -7,7 +7,8 @@
 - OIDC discovery：`/.well-known/openid-configuration`
 - JWKS：`/jwks.json`
 - 授權端點：`/authorize`
-- 登入與註冊端點：`/login`
+- 登入端點：`/login`
+- 註冊頁與註冊端點：`/register`
 - Token 端點：`/token`
 - UserInfo 端點：`/userinfo`
 - 邀請碼管理：`/admin/invite-codes`
@@ -61,10 +62,10 @@ pnpm wrangler secret put ADMIN_TOKEN
 
 ## 登入與註冊
 
-登入頁分成兩個流程：
+OpenAI 仍使用 `/authorize` 作為 authorization endpoint。使用者進入 `/authorize` 後會看到登入頁；若需要建立新帳號，從登入頁點選註冊連結進入 `/register`，OIDC 參數會自動保留。
 
-- 登入：輸入帳號即可，例如 `neko`。系統會使用 `neko@itc.989567.xyz` 登入。
-- 註冊：輸入帳號與邀請碼。註冊成功後會直接完成 OIDC 登入。
+- 登入頁：只輸入帳號，例如 `neko`。系統會使用 `neko@itc.989567.xyz` 登入。
+- 註冊頁：輸入帳號與邀請碼。註冊成功後會直接完成 OIDC 登入。
 
 若使用者輸入完整信箱 `neko@itc.989567.xyz`，系統會自動視為帳號 `neko`。其他信箱域名會被拒絕。
 

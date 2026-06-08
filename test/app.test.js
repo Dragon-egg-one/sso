@@ -50,14 +50,30 @@ describe("Worker HTTP 端點", () => {
     assert.equal(response.status, 200);
     assert.match(html, /OpenAI SSO 登入/);
     assert.match(html, /註冊/);
-    assert.match(html, /邀請碼/);
+    assert.doesNotMatch(html, /邀請碼/);
+    assert.doesNotMatch(html, /@itc\.@itc\.989567\.xyz/);
   });
 
-  it("/login 註冊成功後會導回 redirect_uri 並帶上授權碼", async () => {
+  it("/register 會顯示獨立註冊表單", async () => {
+    const { app } = createTestApp();
+    const response = await app.fetch(
+      new Request(
+        "https://sso.example.com/register?client_id=openai-client&redirect_uri=https%3A%2F%2Fauth.openai.com%2Foidc%2Fcallback&response_type=code&scope=openid%20email&state=abc"
+      )
+    );
+
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(html, /OpenAI SSO 註冊/);
+    assert.match(html, /邀請碼/);
+    assert.match(html, /返回登入/);
+    assert.doesNotMatch(html, /@itc\.@itc\.989567\.xyz/);
+  });
+
+  it("/register 註冊成功後會導回 redirect_uri 並帶上授權碼", async () => {
     const { store, app } = createTestApp();
     await store.createInviteCode({ code: "JOIN", maxUses: 100 });
     const body = new URLSearchParams({
-      mode: "register",
       account: "user",
       invite_code: "JOIN",
       client_id: "openai-client",
@@ -67,7 +83,7 @@ describe("Worker HTTP 端點", () => {
     });
 
     const response = await app.fetch(
-      new Request("https://sso.example.com/login", {
+      new Request("https://sso.example.com/register", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body
@@ -155,7 +171,6 @@ describe("Worker HTTP 端點", () => {
       })
     }).fetch;
     const body = new URLSearchParams({
-      mode: "register",
       account: "user",
       invite_code: "JOIN",
       client_id: "openai-client",
@@ -166,7 +181,7 @@ describe("Worker HTTP 端點", () => {
     console.error = () => {};
 
     const response = await app.fetch(
-      new Request("https://sso.example.com/login", {
+      new Request("https://sso.example.com/register", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body
@@ -199,7 +214,6 @@ describe("Worker HTTP 端點", () => {
     const { store, app } = createTestApp();
     await store.createInviteCode({ code: "JOIN", maxUses: 100 });
     const loginBody = new URLSearchParams({
-      mode: "register",
       account: "user",
       invite_code: "JOIN",
       client_id: "openai-client",
@@ -207,7 +221,7 @@ describe("Worker HTTP 端點", () => {
       scope: "openid email"
     });
     const loginResponse = await app.fetch(
-      new Request("https://sso.example.com/login", {
+      new Request("https://sso.example.com/register", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: loginBody

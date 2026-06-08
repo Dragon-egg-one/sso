@@ -22,8 +22,14 @@ export function createApp({ store, config }) {
         if (request.method === "GET" && url.pathname === "/authorize") {
           return handleAuthorize(url, oidcService);
         }
+        if (request.method === "GET" && url.pathname === "/register") {
+          return handleRegisterPage(url, oidcService);
+        }
         if (request.method === "POST" && url.pathname === "/login") {
           return await handleLogin(request, inviteService, oidcService);
+        }
+        if (request.method === "POST" && url.pathname === "/register") {
+          return await handleRegister(request, inviteService, oidcService);
         }
         if (request.method === "POST" && url.pathname === "/token") {
           return await handleToken(request, oidcService);
@@ -47,22 +53,34 @@ export function createApp({ store, config }) {
 }
 
 function handleAuthorize(url, oidcService) {
-  const request = oidcService.validateAuthorizeRequest(url.searchParams);
-  return html(renderLoginPage(request));
+  const authRequest = oidcService.validateAuthorizeRequest(url.searchParams);
+  return html(renderLoginPage(authRequest));
+}
+
+function handleRegisterPage(url, oidcService) {
+  const authRequest = oidcService.validateAuthorizeRequest(url.searchParams);
+  return html(renderRegisterPage(authRequest));
 }
 
 async function handleLogin(request, inviteService, oidcService) {
+  const { form, authRequest } = await parseLoginForm(request, oidcService);
+  const account = String(form.get("account") ?? "");
+  const user = await inviteService.login({ account });
+  return issueAuthorizationCode({ user, authRequest, oidcService });
+}
+
+async function handleRegister(request, inviteService, oidcService) {
+  const { form, authRequest } = await parseLoginForm(request, oidcService);
+  const user = await inviteService.registerWithInvite({
+    account: String(form.get("account") ?? ""),
+    inviteCode: String(form.get("invite_code") ?? "")
+  });
+  return issueAuthorizationCode({ user, authRequest, oidcService });
+}
+
+async function parseLoginForm(request, oidcService) {
   const form = await request.formData();
-  const mode = String(form.get("mode") ?? "login");
-  const authRequest = {
-    clientId: String(form.get("client_id") ?? ""),
-    redirectUri: String(form.get("redirect_uri") ?? ""),
-    scope: String(form.get("scope") ?? "openid email"),
-    state: String(form.get("state") ?? ""),
-    nonce: String(form.get("nonce") ?? ""),
-    codeChallenge: String(form.get("code_challenge") ?? ""),
-    codeChallengeMethod: String(form.get("code_challenge_method") ?? "")
-  };
+  const authRequest = parseAuthRequestForm(form);
   oidcService.validateAuthorizeRequest(
     new URLSearchParams({
       client_id: authRequest.clientId,
@@ -71,15 +89,22 @@ async function handleLogin(request, inviteService, oidcService) {
       scope: authRequest.scope
     })
   );
+  return { form, authRequest };
+}
 
-  const account = String(form.get("account") ?? "");
-  const user =
-    mode === "register"
-      ? await inviteService.registerWithInvite({
-          account,
-          inviteCode: String(form.get("invite_code") ?? "")
-        })
-      : await inviteService.login({ account });
+function parseAuthRequestForm(form) {
+  return {
+    clientId: String(form.get("client_id") ?? ""),
+    redirectUri: String(form.get("redirect_uri") ?? ""),
+    scope: String(form.get("scope") ?? "openid email"),
+    state: String(form.get("state") ?? ""),
+    nonce: String(form.get("nonce") ?? ""),
+    codeChallenge: String(form.get("code_challenge") ?? ""),
+    codeChallengeMethod: String(form.get("code_challenge_method") ?? "")
+  };
+}
+
+async function issueAuthorizationCode({ user, authRequest, oidcService }) {
   const code = await oidcService.createAuthorizationCode({
     user,
     clientId: authRequest.clientId,
@@ -194,69 +219,117 @@ function parsePrivateJwk(value) {
 }
 
 function renderLoginPage(request) {
+  return renderAuthPage({
+    title: "OpenAI SSO 登入",
+    lead: "請輸入帳號登入。帳號會使用固定信箱域名。",
+    formAction: "/login",
+    buttonText: "登入",
+    fields: accountFields(),
+    switchText: "還沒有帳號？",
+    switchLabel: "前往註冊",
+    switchHref: buildAuthLink("/register", request),
+    hiddenFields: toHiddenFields(request)
+  });
+}
+
+function renderRegisterPage(request) {
+  return renderAuthPage({
+    title: "OpenAI SSO 註冊",
+    lead: "請輸入帳號與邀請碼。註冊成功後會直接登入。",
+    formAction: "/register",
+    buttonText: "註冊並登入",
+    fields: [...accountFields(), { label: "邀請碼", name: "invite_code", autocomplete: "one-time-code" }],
+    switchText: "已有帳號？",
+    switchLabel: "返回登入",
+    switchHref: buildAuthLink("/authorize", request),
+    hiddenFields: toHiddenFields(request)
+  });
+}
+
+function renderAuthPage({
+  title,
+  lead,
+  formAction,
+  buttonText,
+  fields,
+  switchText,
+  switchLabel,
+  switchHref,
+  hiddenFields
+}) {
+  return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    :root { color-scheme: light; font-family: Arial, "Noto Sans TC", sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f7f7f5; color: #1f2328; }
+    main { width: min(430px, calc(100vw - 32px)); background: #fff; border: 1px solid #d9d9d6; border-radius: 8px; padding: 30px; box-shadow: 0 18px 45px rgb(0 0 0 / 8%); }
+    h1 { margin: 0 0 16px; font-size: 26px; line-height: 1.25; }
+    label { display: grid; gap: 8px; margin: 16px 0; font-size: 14px; font-weight: 600; }
+    input { box-sizing: border-box; width: 100%; border: 1px solid #c8c8c4; border-radius: 6px; padding: 12px; font-size: 16px; }
+    input:focus { outline: 2px solid #111; outline-offset: 2px; }
+    button { width: 100%; border: 0; border-radius: 6px; padding: 13px 14px; margin-top: 10px; background: #111; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
+    p { margin: 0 0 18px; color: #5b5f66; line-height: 1.6; }
+    .hint { margin-top: 18px; text-align: center; font-size: 14px; }
+    a { color: #111; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(lead)}</p>
+    <form method="post" action="${escapeHtml(formAction)}">
+      ${renderHiddenFields(hiddenFields)}
+      ${fields
+        .map(
+          (field) => `<label>${escapeHtml(field.label)}
+        <input name="${escapeHtml(field.name)}" autocomplete="${escapeHtml(field.autocomplete)}" required>
+      </label>`
+        )
+        .join("")}
+      <button type="submit">${escapeHtml(buttonText)}</button>
+    </form>
+    <p class="hint">${escapeHtml(switchText)} <a href="${escapeHtml(switchHref)}">${escapeHtml(switchLabel)}</a></p>
+  </main>
+</body>
+</html>`;
+}
+
+function accountFields() {
+  return [{ label: "帳號", name: "account", autocomplete: "username" }];
+}
+
+function renderHiddenFields(hiddenFields) {
+  return Object.entries(hiddenFields)
+    .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
+    .join("");
+}
+
+function buildAuthLink(pathname, request) {
+  const url = new URL(pathname, "https://sso.local");
+  for (const [name, value] of Object.entries(toHiddenFields(request))) {
+    if (value) {
+      url.searchParams.set(name, value);
+    }
+  }
+  return `${url.pathname}${url.search}`;
+}
+
+function toHiddenFields(request) {
   const hiddenFields = {
     client_id: request.clientId,
     redirect_uri: request.redirectUri,
+    response_type: request.responseType,
     scope: request.scope,
     state: request.state,
     nonce: request.nonce,
     code_challenge: request.codeChallenge,
     code_challenge_method: request.codeChallengeMethod
   };
-  return `<!doctype html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OpenAI SSO 登入</title>
-  <style>
-    :root { color-scheme: light; font-family: Arial, "Noto Sans TC", sans-serif; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f7f7f5; color: #1f2328; }
-    main { width: min(520px, calc(100vw - 32px)); background: #fff; border: 1px solid #d9d9d6; border-radius: 8px; padding: 28px; box-shadow: 0 18px 45px rgb(0 0 0 / 8%); }
-    h1 { margin: 0 0 20px; font-size: 24px; line-height: 1.25; }
-    h2 { margin: 0 0 12px; font-size: 18px; line-height: 1.3; }
-    label { display: grid; gap: 8px; margin: 14px 0; font-size: 14px; font-weight: 600; }
-    input { box-sizing: border-box; width: 100%; border: 1px solid #c8c8c4; border-radius: 6px; padding: 11px 12px; font-size: 16px; }
-    button { width: 100%; border: 0; border-radius: 6px; padding: 12px 14px; margin-top: 12px; background: #111; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
-    p { margin: 0 0 16px; color: #5b5f66; line-height: 1.6; }
-    section { border-top: 1px solid #e5e5e2; padding-top: 20px; margin-top: 20px; }
-    .suffix { color: #5b5f66; font-weight: 500; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>OpenAI SSO 登入</h1>
-    <p>已註冊帳號可直接登入。新帳號需要邀請碼。</p>
-    <form method="post" action="/login">
-      <input type="hidden" name="mode" value="login">
-      ${Object.entries(hiddenFields)
-        .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
-        .join("")}
-      <h2>登入</h2>
-      <label>帳號 <span class="suffix">@itc.989567.xyz</span>
-        <input name="account" autocomplete="username" required>
-      </label>
-      <button type="submit">登入</button>
-    </form>
-    <section>
-      <form method="post" action="/login">
-        <input type="hidden" name="mode" value="register">
-        ${Object.entries(hiddenFields)
-          .map(([name, value]) => `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`)
-          .join("")}
-        <h2>註冊</h2>
-        <label>帳號 <span class="suffix">@itc.989567.xyz</span>
-          <input name="account" autocomplete="username" required>
-        </label>
-      <label>邀請碼
-        <input name="invite_code" autocomplete="one-time-code">
-      </label>
-        <button type="submit">註冊並登入</button>
-      </form>
-    </section>
-  </main>
-</body>
-</html>`;
+  return hiddenFields;
 }
 
 function html(body, init = {}) {
