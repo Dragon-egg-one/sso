@@ -71,7 +71,7 @@ pnpm wrangler secret put TURNSTILE_SECRET_KEY
 - `TURNSTILE_SITE_KEY`：選擇一般變量，填入 Turnstile widget 的 Site Key。
 - `TURNSTILE_SECRET_KEY`：選擇 Secret，填入 Turnstile widget 的 Secret Key。
 
-若完全不設定 Turnstile 變量，系統會停用人機驗證；若只設定其中一個變量，註冊會因缺少必要設定而失敗。正式使用請務必同時設定 `TURNSTILE_SITE_KEY` 與 `TURNSTILE_SECRET_KEY`。啟用後，只有註冊新帳號需要通過 Turnstile，既有帳號登入不需要驗證。
+若完全不設定 Turnstile 變量，系統會停用人機驗證；若只設定其中一個變量，登入與註冊會因缺少必要設定而失敗。正式使用請務必同時設定 `TURNSTILE_SITE_KEY` 與 `TURNSTILE_SECRET_KEY`。啟用後，登入既有帳號與註冊新帳號都需要通過 Turnstile。
 
 ## 登入與註冊
 

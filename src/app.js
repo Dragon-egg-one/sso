@@ -32,7 +32,7 @@ export function createApp({ store, config, turnstileFetch = fetch }) {
           return handleRegisterPage(url, oidcService, config);
         }
         if (request.method === "POST" && url.pathname === "/login") {
-          return await handleLogin(request, inviteService, oidcService);
+          return await handleLogin(request, inviteService, oidcService, turnstileService);
         }
         if (request.method === "POST" && url.pathname === "/register") {
           return await handleRegister(request, inviteService, oidcService, turnstileService);
@@ -82,8 +82,9 @@ function buildDefaultAuthorizeParams(config) {
   });
 }
 
-async function handleLogin(request, inviteService, oidcService) {
+async function handleLogin(request, inviteService, oidcService, turnstileService) {
   const { form, authRequest } = await parseLoginForm(request, oidcService);
+  await turnstileService.verifyAuthForm(request, form);
   const account = String(form.get("account") ?? "");
   const user = await inviteService.login({ account });
   return issueAuthorizationCode({ user, authRequest, oidcService });
@@ -91,7 +92,7 @@ async function handleLogin(request, inviteService, oidcService) {
 
 async function handleRegister(request, inviteService, oidcService, turnstileService) {
   const { form, authRequest } = await parseLoginForm(request, oidcService);
-  await turnstileService.verifyRegistration(request, form);
+  await turnstileService.verifyAuthForm(request, form);
   const user = await inviteService.registerWithInvite({
     account: String(form.get("account") ?? ""),
     inviteCode: String(form.get("invite_code") ?? "")
@@ -245,7 +246,7 @@ class TurnstileService {
     this.turnstileFetch = turnstileFetch;
   }
 
-  async verifyRegistration(request, form) {
+  async verifyAuthForm(request, form) {
     if (!this.config.turnstileSiteKey && !this.config.turnstileSecretKey) {
       return;
     }
@@ -298,7 +299,8 @@ function renderLoginPage(request, config) {
     switchLabel: "前往註冊",
     switchHref: buildAuthLink("/register", request),
     hiddenFields: toHiddenFields(request),
-    turnstileSiteKey: ""
+    turnstileSiteKey: config.turnstileSiteKey,
+    turnstileAction: "login"
   });
 }
 
@@ -313,7 +315,8 @@ function renderRegisterPage(request, config) {
     switchLabel: "返回登入",
     switchHref: buildAuthLink("/authorize", request),
     hiddenFields: toHiddenFields(request),
-    turnstileSiteKey: config.turnstileSiteKey
+    turnstileSiteKey: config.turnstileSiteKey,
+    turnstileAction: "register"
   });
 }
 
@@ -327,7 +330,8 @@ function renderAuthPage({
   switchLabel,
   switchHref,
   hiddenFields,
-  turnstileSiteKey
+  turnstileSiteKey,
+  turnstileAction
 }) {
   return `<!doctype html>
 <html lang="zh-Hant">
@@ -499,7 +503,7 @@ function renderAuthPage({
       </label>`
         )
         .join("")}
-      ${renderTurnstile(turnstileSiteKey)}
+      ${renderTurnstile(turnstileSiteKey, turnstileAction)}
       <button type="submit">${escapeHtml(buttonText)}</button>
     </form>
     <p class="hint">${escapeHtml(switchText)} <a href="${escapeHtml(switchHref)}">${escapeHtml(switchLabel)}</a></p>
@@ -519,11 +523,11 @@ function renderAccountField(field) {
         </label>`;
 }
 
-function renderTurnstile(siteKey) {
+function renderTurnstile(siteKey, action) {
   if (!siteKey) {
     return "";
   }
-  return `<div class="turnstile-widget cf-turnstile" data-sitekey="${escapeHtml(siteKey)}" data-action="register"></div>`;
+  return `<div class="turnstile-widget cf-turnstile" data-sitekey="${escapeHtml(siteKey)}" data-action="${escapeHtml(action)}"></div>`;
 }
 
 function renderTurnstileScript(siteKey) {
