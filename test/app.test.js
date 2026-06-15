@@ -112,7 +112,7 @@ describe("Worker HTTP 端點", () => {
     const html = await response.text();
     assert.equal(response.status, 200);
     assert.match(html, /@team\.example\.org/);
-    assert.doesNotMatch(html, /@itc\.989567\.xyz/);
+    assert.doesNotMatch(html, /@old\.example\.com/);
   });
 
   it("/login 啟用 Turnstile 後缺少 token 會拒絕登入", async () => {
