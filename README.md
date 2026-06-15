@@ -25,7 +25,7 @@
 - 不包含 `[vars]`：避免公開倉庫保存正式環境變數。
 - 不包含真實 `[[d1_databases]]`：避免公開 D1 database id。
 
-自動部署時請使用 `npm run deploy`。這個命令會從 Cloudflare Build variable `D1_DATABASE_ID` 生成臨時 `.wrangler/deploy.toml`，再執行 Wrangler deploy。臨時檔只存在於構建環境，不會提交到 GitHub。
+自動部署時請使用 `npm run deploy`。這個命令會從 Cloudflare Build variable `D1_DATABASE_ID` 生成臨時 `wrangler.deploy.toml`，再執行 Wrangler deploy。臨時檔只存在於構建環境，不會提交到 GitHub。
 
 整體流程如下：
 
@@ -184,7 +184,7 @@ DB
 
 ```text
 Executing user deploy command: npm run deploy
-已生成臨時 Wrangler 設定：.wrangler/deploy.toml
+已生成臨時 Wrangler 設定：wrangler.deploy.toml
 ```
 
 如果有 version upload 或 preview deployment，也應該看到它使用：

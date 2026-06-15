@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const DEFAULT_CONFIG_PATH = ".wrangler/deploy.toml";
+export const DEFAULT_CONFIG_PATH = "wrangler.deploy.toml";
 
 export function validateDeployEnv(env) {
   const databaseId = String(env.D1_DATABASE_ID ?? "").trim();

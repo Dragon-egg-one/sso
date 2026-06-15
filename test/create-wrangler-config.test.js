@@ -1,7 +1,12 @@
 import { strict as assert } from "node:assert";
+import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
-import { createWranglerConfig, validateDeployEnv } from "../scripts/create-wrangler-config.js";
+import {
+  DEFAULT_CONFIG_PATH,
+  createWranglerConfig,
+  validateDeployEnv
+} from "../scripts/create-wrangler-config.js";
 
 describe("臨時 Wrangler 設定生成", () => {
   it("缺少 D1 database id 時會拒絕生成部署設定", () => {
@@ -24,5 +29,21 @@ describe("臨時 Wrangler 設定生成", () => {
     assert.match(config, /database_id = "11111111-2222-3333-4444-555555555555"/);
     assert.doesNotMatch(config, /\[vars\]/);
     assert.doesNotMatch(config, /ISSUER/);
+  });
+
+  it("部署指令會使用專案根目錄的臨時 Wrangler 設定", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8")
+    );
+
+    assert.equal(DEFAULT_CONFIG_PATH, "wrangler.deploy.toml");
+    assert.equal(
+      packageJson.scripts.deploy,
+      `npm run deploy:config && wrangler deploy --config ${DEFAULT_CONFIG_PATH}`
+    );
+    assert.equal(
+      packageJson.scripts["deploy:version"],
+      `npm run deploy:config && wrangler versions upload --config ${DEFAULT_CONFIG_PATH}`
+    );
   });
 });
