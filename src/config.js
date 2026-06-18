@@ -22,8 +22,7 @@ export function loadConfig(env = {}) {
     turnstileSiteKey: optional(env.TURNSTILE_SITE_KEY),
     turnstileSecretKey: optional(env.TURNSTILE_SECRET_KEY),
     authorizationCodeTtlSeconds: Number(env.AUTHORIZATION_CODE_TTL_SECONDS ?? 300),
-    tokenTtlSeconds: Number(env.TOKEN_TTL_SECONDS ?? 3600)
-  };
+    tokenTtlSeconds: Number(env.TOKEN_TTL_SECONDS ?? 3600), autoCreateUsers: ["1", "true", "yes", "on"].includes(String(env.AUTO_CREATE_USERS ?? "").trim().toLowerCase()) };
 }
 
 function optional(value) {

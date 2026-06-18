@@ -5,7 +5,7 @@ import { OidcService } from "./oidc-service.js";
 const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export function createApp({ store, config, turnstileFetch = (...args) => globalThis.fetch(...args) }) {
-  const inviteService = new InviteService(store, { accountDomain: config.accountDomain });
+  const inviteService = new InviteService(store, { accountDomain: config.accountDomain, autoCreateUsers: config.autoCreateUsers });
   const oidcService = new OidcService({ store, config });
   const turnstileService = new TurnstileService({ config, turnstileFetch });
 

@@ -1,21 +1,9 @@
 import { normalizeEmail, normalizeInviteCode } from "./store.js";
 
 export class InviteService {
-  constructor(store, { accountDomain } = {}) {
-    this.store = store;
-    this.accountDomain = normalizeAccountDomain(accountDomain);
-  }
+  constructor(store, { accountDomain, autoCreateUsers = false } = {}) { this.store = store; this.accountDomain = normalizeAccountDomain(accountDomain); this.autoCreateUsers = Boolean(autoCreateUsers); }
 
-  async login({ account }) {
-    const normalizedEmail = normalizeAccountEmail(account, this.accountDomain);
-    const existingUser = await this.store.getUserByEmail(normalizedEmail);
-    if (!existingUser) {
-      throw new Error("帳號不存在，請先註冊");
-    }
-
-    const user = await this.store.updateUserLogin(normalizedEmail);
-    return { ...user, created: false };
-  }
+  async login({ account }) { const normalizedEmail = normalizeAccountEmail(account, this.accountDomain); const existingUser = await this.store.getUserByEmail(normalizedEmail); if (!existingUser) { if (this.autoCreateUsers && typeof this.store.createUserDirect === "function") { const result = await this.store.createUserDirect({ email: normalizedEmail, displayName: normalizedEmail.split("@")[0], source: "auto" }); return { ...result.user, created: result.created }; } throw new Error("帳號不存在，請先註冊"); } const user = await this.store.updateUserLogin(normalizedEmail); return { ...user, created: false }; }
 
   async registerWithInvite({ account, displayName, inviteCode }) {
     const normalizedEmail = normalizeAccountEmail(account, this.accountDomain);

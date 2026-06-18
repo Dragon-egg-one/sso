@@ -59,7 +59,7 @@ export class MemoryStore {
     return { user: { ...user }, created: true };
   }
 
-  async updateUserLogin(email) {
+  async createUserDirect({ email, displayName, source = "auto" }) { const normalizedEmail = normalizeEmail(email); const existingUser = this.users.get(normalizedEmail); if (existingUser) { return { user: { ...existingUser }, created: false }; } const now = this.now().toISOString(); const user = { email: normalizedEmail, displayName: normalizeDisplayName(displayName, normalizedEmail), inviteCode: source, createdAt: now, lastLoginAt: now }; this.users.set(normalizedEmail, user); return { user: { ...user }, created: true }; } async updateUserLogin(email) {
     const normalizedEmail = normalizeEmail(email);
     const user = this.users.get(normalizedEmail);
     if (!user) {
@@ -181,7 +181,7 @@ export class D1Store {
     throw new Error("建立使用者失敗");
   }
 
-  async updateUserLogin(email) {
+  async createUserDirect({ email, displayName, source = "auto" }) { const normalizedEmail = normalizeEmail(email); const existingUser = await this.getUserByEmail(normalizedEmail); if (existingUser) { return { user: existingUser, created: false }; } const now = new Date().toISOString(); await this.db.prepare(`INSERT OR IGNORE INTO users (email, display_name, invite_code, created_at, last_login_at) VALUES (?, ?, ?, ?, ?)`).bind(normalizedEmail, normalizeDisplayName(displayName, normalizedEmail), source, now, now).run(); const user = await this.getUserByEmail(normalizedEmail); if (user) { return { user, created: true }; } throw new Error("建立使用者失敗"); } async updateUserLogin(email) {
     const normalizedEmail = normalizeEmail(email);
     const now = new Date().toISOString();
     await this.db
